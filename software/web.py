@@ -1,28 +1,10 @@
 import streamlit as st
 import requests
-import pandas as pd
-import plotly.graph_objects as go
 
 st.set_page_config(page_title="Motor Diagnostic UI", layout="wide")
 st.title("⚙️ B2B Motor Diagnostic Dashboard")
 
 API_URL = "http://127.0.0.1:8000"
-
-# ---- Initialize session state ----
-if "live_running" not in st.session_state:
-    st.session_state.live_running = False
-if "data_x" not in st.session_state:
-    st.session_state.data_x = []
-if "data_y" not in st.session_state:
-    st.session_state.data_y = []
-if "data_z" not in st.session_state:
-    st.session_state.data_z = []
-if "avg_x" not in st.session_state:
-    st.session_state.avg_x = 0
-if "avg_y" not in st.session_state:
-    st.session_state.avg_y = 0
-if "avg_z" not in st.session_state:
-    st.session_state.avg_z = 0
 
 MAX_POINTS = 100  # scrolling window size (like Task Manager)
 
@@ -35,14 +17,6 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.subheader("Step 1: Calibration")
     if st.button("▶ Action 1: Read 1000 Values"):
-        # Clear all session state data immediately
-        st.session_state.data_x = []
-        st.session_state.data_y = []
-        st.session_state.data_z = []
-        st.session_state.avg_x = 0
-        st.session_state.avg_y = 0
-        st.session_state.avg_z = 0
-        st.session_state.live_running = False
 
         with st.spinner("🗑️ Clearing old data & recording 1000 fresh readings (~20 sec)..."):
             try:

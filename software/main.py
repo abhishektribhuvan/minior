@@ -13,8 +13,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from fastapi import FastAPI
 from fastapi.responses import Response
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+# Allow cross-origin requests from Streamlit's embedded iframe
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- CONFIGURATION ---
 SERIAL_PORT = "COM3"  # <--- CHANGE TO YOUR ESP32 PORT
@@ -100,31 +109,48 @@ def get_live_data():
             
     return {"live": latest_reading, "averages": averages}
 
-# --- ACTION 3: GET DISTRIBUTION GRAPH (Magnitude) ---
+# --- ACTION 3: GET DISTRIBUTION GRAPHS (X, Y, Z — 3 separate plots) ---
 @app.get("/api/action3_distribution")
 def get_distribution():
     if not os.path.exists(CSV_FILE):
         return Response(content="No data", status_code=404)
 
     df = pd.read_csv(CSV_FILE)
-    
-    # Compute magnitude: sqrt(x^2 + y^2 + z^2)
-    df['magnitude'] = np.sqrt(df['x']**2 + df['y']**2 + df['z']**2)
-    
-    sns.set_theme(style="darkgrid")
-    fig, ax = plt.subplots(figsize=(10, 5))
-    
-    sns.histplot(df['magnitude'], kde=True, ax=ax, color='#6C63FF', edgecolor='white', linewidth=0.5)
-    ax.set_title("Normal Distribution: Vibration Magnitude  √(x² + y² + z²)", fontsize=14, fontweight='bold')
-    ax.set_xlabel("Magnitude", fontsize=12)
-    ax.set_ylabel("Frequency", fontsize=12)
-    ax.axvline(df['magnitude'].mean(), color='red', linestyle='--', linewidth=2, label=f"Mean: {df['magnitude'].mean():.2f}")
-    ax.legend(fontsize=11)
+    if df.empty:
+        return Response(content="No data", status_code=404)
 
+    sns.set_theme(style="darkgrid")
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+
+    axis_config = [
+        ("X-Axis", df['x'], "cornflowerblue", axes[0]),
+        ("Y-Axis", df['y'], "#2ecc71", axes[1]),
+        ("Z-Axis", df['z'], "#e74c3c", axes[2]),
+    ]
+
+    for title, data, color, ax in axis_config:
+        mu = data.mean()
+        sigma = data.std()
+
+        sns.histplot(data, kde=True, ax=ax, color=color, edgecolor='white', linewidth=0.5, bins=40)
+        ax.set_title(f"Distribution: {title}\n(μ={mu:.2f}, σ={sigma:.2f})", fontsize=13, fontweight='bold')
+        ax.set_xlabel("Sensor Value", fontsize=11)
+        ax.set_ylabel("Frequency", fontsize=11)
+
+        # Mean line
+        ax.axvline(mu, color='black', linestyle='-', linewidth=1.5, label=f"Mean: {mu:.2f}")
+        # ±3σ anomaly boundaries
+        ax.axvline(mu + 3*sigma, color='orange', linestyle='--', linewidth=2, label=f"+3σ: {mu+3*sigma:.2f}")
+        ax.axvline(mu - 3*sigma, color='orange', linestyle='--', linewidth=2, label=f"-3σ: {mu-3*sigma:.2f}")
+
+        ax.legend(fontsize=9, loc="upper right")
+
+    fig.suptitle("Vibration Distribution — 1000 Calibration Readings", fontsize=16, fontweight='bold', y=1.02)
     plt.tight_layout()
+
     buf = io.BytesIO()
-    plt.savefig(buf, format="png", dpi=120)
+    plt.savefig(buf, format="png", dpi=120, bbox_inches='tight')
     plt.close()
     buf.seek(0)
-    
+
     return Response(content=buf.getvalue(), media_type="image/png")
