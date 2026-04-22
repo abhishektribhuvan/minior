@@ -43,12 +43,17 @@ def serial_worker():
                 line = ser.readline().decode('utf-8').strip()
                 if line.startswith('{') and line.endswith('}'):
                     data = json.loads(line)
-                    latest_reading = data # Always update live data
+                    # Store absolute values so negatives don't cancel out
+                    latest_reading = {
+                        "x": abs(data['x']),
+                        "y": abs(data['y']),
+                        "z": abs(data['z'])
+                    }
                     
-                    # ACTION 1 LOGIC: If triggered, save to CSV until we hit 1000
+                    # ACTION 1 LOGIC: If triggered, save absolute values to CSV until we hit 1000
                     if is_calibrating and calibration_count < 1000:
                         with open(CSV_FILE, mode='a', newline='') as file:
-                            csv.writer(file).writerow([data['x'], data['y'], data['z']])
+                            csv.writer(file).writerow([abs(data['x']), abs(data['y']), abs(data['z'])])
                         calibration_count += 1
                         if calibration_count >= 1000:
                             is_calibrating = False # Stop recording when done
@@ -88,9 +93,9 @@ def get_live_data():
         df = pd.read_csv(CSV_FILE)
         if not df.empty:
             averages = {
-                "avg_x": df['x'].mean(),
-                "avg_y": df['y'].mean(),
-                "avg_z": df['z'].mean()
+                "avg_x": df['x'].abs().mean(),
+                "avg_y": df['y'].abs().mean(),
+                "avg_z": df['z'].abs().mean()
             }
             
     return {"live": latest_reading, "averages": averages}
