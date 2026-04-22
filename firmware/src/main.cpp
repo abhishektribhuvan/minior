@@ -30,7 +30,7 @@ void loop() {
     char strX[16], strY[16], strZ[16];
     sprintf(strX, "%.4f", a.acceleration.x);
     sprintf(strY, "%.4f", a.acceleration.y);
-    sprintf(strZ, "%.4f", fmod(a.acceleration.z, 9.800)); 
+    sprintf(strZ, "%.4f", a.acceleration.z); 
 
     char jsonPayload[128];
     sprintf(jsonPayload, "{\"x\": %s, \"y\": %s, \"z\": %s}", strX, strY, strZ);
